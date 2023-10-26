@@ -20,7 +20,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 @WebServlet("/news.nhn")
-@MultipartConfig(maxFileSize = 1024*1024*2, location = "c:/Temp/img")
+@MultipartConfig(maxFileSize = 1024*1024*2, location = "C:\\spring_study\\jwbook\\src\\main\\webapp\\img")
 public class NewsController extends HttpServlet {
   private NewsDAO newsDAO;
   private ServletContext ctx;
@@ -35,13 +35,13 @@ public class NewsController extends HttpServlet {
 
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-    req.setCharacterEncoding("UTF-8");
+//    req.setCharacterEncoding("UTF-8");
     String action = req.getParameter("action");
     String view = "";
     Method m;
 
     if (action == null) {
-      action = "list";
+      ctx.getRequestDispatcher("/news.nhn?action=list").forward(req,resp);
     } else {
       try {
         m = this.getClass().getMethod(action, HttpServletRequest.class, HttpServletResponse.class);
@@ -73,20 +73,22 @@ public class NewsController extends HttpServlet {
       BeanUtils.populate(news, req.getParameterMap());
 
       // 이미지 파일 이름을 News 객체에 저장
-      news.setImg("/temp/img/" + fileName);
+      news.setImg("/img/" + fileName);
 
       newsDAO.addNews(news);
     } catch (Exception e) {
       e.printStackTrace();
+      ctx.log("뉴스 등록 과정에서 문제 발생!");
+      req.setAttribute("error", "뉴스가 정상적으로 등록되지 않았습니다.");
+      return list(req, resp);
     }
     return "redirect:/news.nhn?action=list";
   }
 
   public String list(HttpServletRequest req, HttpServletResponse resp) {
-    List<News> newsList;
-
+    String err = (String)req.getAttribute("error");
     try {
-      newsList = newsDAO.getAll();
+      List<News> newsList = newsDAO.getAll();
       req.setAttribute("newsList", newsList);
     } catch (SQLException e) {
       throw new RuntimeException(e);
@@ -97,10 +99,12 @@ public class NewsController extends HttpServlet {
 
   public String delNews(HttpServletRequest req, HttpServletResponse resp) {
     try {
-
       newsDAO.delNews(Integer.parseInt(req.getParameter("aid")));
     } catch (SQLException e) {
       e.printStackTrace();
+      ctx.log("뉴스 삭제 과정에서 문제 발생!");
+      req.setAttribute("error", "뉴스를 정상적으로 삭제하지 못했습니다.");
+      return list(req, resp);
     }
 
     return "redirect:/news.nhn?action=list";
@@ -112,18 +116,10 @@ public class NewsController extends HttpServlet {
       req.setAttribute("news", news);
     } catch (SQLException e) {
       e.printStackTrace();
+      ctx.log("뉴스를 가져오는 과정에서 문제 발생!");
+      req.setAttribute("error", "뉴스가 정상적으로 가져오지 못했습니다.");
     }
 
     return "newsView.jsp";
-  }
-
-  @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    doGet(req, resp);
-  }
-
-  @Override
-  protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-    doGet(req, resp);
   }
 }
